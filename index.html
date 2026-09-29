@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>云环境下的服务器环境搭建 · 云计算实验二</title>
+<style>
+  :root{
+    --bg:#070d1a;
+    --navy:#0a1730;
+    --blue:#2f7bff;
+    --cyan:#38e1ff;
+    --purple:#8b5cf6;
+    --text:#e8eefc;
+    --muted:#9aabc7;
+    --line:rgba(255,255,255,.10);
+    --glass:rgba(255,255,255,.055);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    font-family:-apple-system,"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    line-height:1.7;
+    overflow-x:hidden;
+  }
+
+  /* ---------- 动态背景 ---------- */
+  .aurora{position:fixed;inset:0;z-index:-2;overflow:hidden;background:var(--bg);}
+  .blob{position:absolute;border-radius:50%;filter:blur(90px);opacity:.55;animation:float 18s ease-in-out infinite;}
+  .b1{width:620px;height:620px;background:var(--blue);top:-180px;left:-120px;}
+  .b2{width:560px;height:560px;background:var(--purple);top:120px;right:-160px;animation-delay:-6s;}
+  .b3{width:520px;height:520px;background:var(--cyan);bottom:-200px;left:32%;animation-delay:-12s;}
+  @keyframes float{
+    0%,100%{transform:translate(0,0) scale(1);}
+    33%{transform:translate(60px,-50px) scale(1.12);}
+    66%{transform:translate(-50px,40px) scale(.92);}
+  }
+  .grid{
+    position:fixed;inset:0;z-index:-1;pointer-events:none;
+    background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);
+    background-size:56px 56px;
+    mask-image:radial-gradient(ellipse at 50% 0%,#000 10%,transparent 72%);
+    -webkit-mask-image:radial-gradient(ellipse at 50% 0%,#000 10%,transparent 72%);
+  }
+
+  /* ---------- 通用 ---------- */
+  .wrap{max-width:1120px;margin:0 auto;padding:0 28px;}
+  .reveal{opacity:0;transform:translateY(28px);transition:opacity .75s cubic-bezier(.2,.7,.3,1),transform .75s cubic-bezier(.2,.7,.3,1);}
+  .reveal.in{opacity:1;transform:none;}
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:8px;
+    font-size:12.5px;letter-spacing:2.5px;color:var(--cyan);
+    border:1px solid rgba(56,225,255,.28);background:rgba(56,225,255,.07);
+    padding:6px 14px;border-radius:999px;margin-bottom:18px;
+  }
+  .eyebrow i{width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px var(--cyan);font-style:normal;}
+  h2.title{font-size:31px;font-weight:700;letter-spacing:.5px;margin-bottom:10px;}
+  .sub{color:var(--muted);font-size:15px;max-width:660px;}
+  section{padding:96px 0;position:relative;}
+  .glass{
+    background:var(--glass);border:1px solid var(--line);
+    border-radius:18px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  }
+
+  /* ---------- Hero ---------- */
+  header.hero{min-height:100vh;display:flex;align-items:center;position:relative;padding:80px 0;}
+  .badge-live{
+    display:inline-flex;align-items:center;gap:9px;font-size:13px;
+    background:rgba(46,204,113,.12);border:1px solid rgba(46,204,113,.34);
+    color:#5ef0a4;padding:7px 15px;border-radius:999px;margin-bottom:26px;
+  }
+  .dot{width:7px;height:7px;border-radius:50%;background:#2ecc71;animation:pulse 1.6s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(46,204,113,.6);}50%{opacity:.45;box-shadow:0 0 0 9px rgba(46,204,113,0);}}
+  .hero h1{
+    font-size:clamp(38px,6.2vw,68px);font-weight:800;line-height:1.16;letter-spacing:-.5px;
+    background:linear-gradient(120deg,#ffffff 12%,#8fc4ff 52%,#b98cff 92%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .hero .desc{margin-top:22px;font-size:17px;color:#b9c8e2;max-width:660px;}
+  .hero .meta{margin-top:16px;font-size:14px;color:var(--muted);letter-spacing:.4px;}
+  .hero-btns{margin-top:36px;display:flex;gap:14px;flex-wrap:wrap;}
+  .btn{
+    display:inline-flex;align-items:center;gap:9px;text-decoration:none;font-size:14.5px;font-weight:600;
+    padding:13px 26px;border-radius:12px;transition:.28s;border:1px solid transparent;
+  }
+  .btn-p{background:linear-gradient(120deg,var(--blue),var(--purple));color:#fff;box-shadow:0 10px 30px rgba(47,123,255,.32);}
+  .btn-p:hover{transform:translateY(-3px);box-shadow:0 16px 38px rgba(47,123,255,.45);}
+  .btn-g{border-color:var(--line);color:var(--text);background:rgba(255,255,255,.04);}
+  .btn-g:hover{transform:translateY(-3px);background:rgba(255,255,255,.09);}
+  .urlbox{
+    margin-top:34px;display:inline-flex;align-items:center;gap:14px;flex-wrap:wrap;
+    background:rgba(255,255,255,.045);border:1px dashed rgba(255,255,255,.18);
+    padding:14px 20px;border-radius:14px;font-size:13.5px;color:#cfe0ff;
+  }
+  .urlbox code{font-family:"SFMono-Regular",Consolas,monospace;color:var(--cyan);font-size:14px;}
+
+  /* ---------- 统计 ---------- */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:-40px;position:relative;z-index:2;}
+  .stat{padding:26px 22px;text-align:center;transition:.3s;}
+  .stat:hover{transform:translateY(-6px);border-color:rgba(56,225,255,.4);}
+  .stat b{display:block;font-size:29px;font-weight:800;
+    background:linear-gradient(120deg,#7fb6ff,#b98cff);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .stat span{display:block;font-size:13px;color:var(--muted);margin-top:6px;}
+
+  /* ---------- 时间轴 ---------- */
+  .steps{margin-top:44px;display:grid;gap:16px;}
+  .step{
+    display:grid;grid-template-columns:62px 1fr;gap:20px;padding:22px 26px;
+    align-items:center;transition:.3s;position:relative;overflow:hidden;
+  }
+  .step:hover{transform:translateX(8px);border-color:rgba(47,123,255,.48);background:rgba(47,123,255,.07);}
+  .num{
+    width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+    font-size:19px;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--blue),var(--purple));
+    box-shadow:0 8px 22px rgba(47,123,255,.3);
+  }
+  .step h3{font-size:16.5px;font-weight:700;margin-bottom:5px;}
+  .step p{font-size:14px;color:var(--muted);}
+
+  /* ---------- 卡片 ---------- */
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:42px;}
+  .card{padding:28px 26px;transition:.32s;position:relative;}
+  .card::after{
+    content:"";position:absolute;inset:0;border-radius:18px;padding:1px;
+    background:linear-gradient(135deg,rgba(56,225,255,.5),transparent 55%);
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor;mask-composite:exclude;opacity:0;transition:.32s;pointer-events:none;
+  }
+  .card:hover{transform:translateY(-8px);}
+  .card:hover::after{opacity:1;}
+  .ico{
+    width:46px;height:46px;border-radius:13px;display:flex;align-items:center;justify-content:center;
+    font-size:21px;margin-bottom:16px;background:rgba(47,123,255,.16);border:1px solid rgba(47,123,255,.3);
+  }
+  .card h3{font-size:17px;font-weight:700;margin-bottom:8px;}
+  .card p{font-size:14px;color:var(--muted);}
+
+  /* ---------- 对比 ---------- */
+  .vs{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:42px;}
+  .col{padding:28px 26px;}
+  .col.bad{border-color:rgba(255,107,107,.24);background:rgba(255,107,107,.05);}
+  .col.good{border-color:rgba(46,204,113,.26);background:rgba(46,204,113,.055);}
+  .col h3{font-size:17px;margin-bottom:16px;display:flex;align-items:center;gap:9px;}
+  .col.bad h3{color:#ff9b9b;}
+  .col.good h3{color:#5ef0a4;}
+  .col li{list-style:none;font-size:14px;color:var(--muted);padding:8px 0;padding-left:20px;position:relative;}
+  .col li::before{content:"";position:absolute;left:2px;top:16px;width:7px;height:7px;border-radius:2px;}
+  .col.bad li::before{background:#ff6b6b;}
+  .col.good li::before{background:#2ecc71;}
+
+  /* ---------- 代码 ---------- */
+  .code{
+    margin-top:38px;background:#050a14;border:1px solid var(--line);border-radius:16px;overflow:hidden;
+  }
+  .bar{display:flex;gap:7px;padding:13px 18px;background:rgba(255,255,255,.035);border-bottom:1px solid var(--line);}
+  .bar i{width:11px;height:11px;border-radius:50%;font-style:normal;}
+  .bar i:nth-child(1){background:#ff5f57;} .bar i:nth-child(2){background:#febc2e;} .bar i:nth-child(3){background:#28c840;}
+  .code pre{padding:22px 24px;overflow-x:auto;font-family:"SFMono-Regular",Consolas,monospace;font-size:13.5px;line-height:1.85;color:#c8d6f0;}
+  .c1{color:#ff7b9c;} .c2{color:#7ee787;} .c3{color:#79c0ff;} .c4{color:#8b949e;}
+
+  /* ---------- 页脚 ---------- */
+  footer{padding:44px 0;border-top:1px solid var(--line);text-align:center;color:var(--muted);font-size:13.5px;}
+  footer b{color:var(--text);}
+
+  @media(max-width:900px){
+    .stats,.cards{grid-template-columns:repeat(2,1fr);}
+    .vs{grid-template-columns:1fr;}
+    section{padding:72px 0;}
+  }
+  @media(max-width:560px){
+    .stats,.cards{grid-template-columns:1fr;}
+    .step{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<div class="aurora">
+  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+</div>
+<div class="grid"></div>
+
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <div class="wrap">
+    <div class="badge-live"><span class="dot"></span>SERVICE ONLINE · 页面已成功发布至公网</div>
+    <h1>云环境下的<br>服务器环境搭建</h1>
+    <p class="desc">
+      课程：云计算与分布式系统 ｜ 实验二<br>
+      基于 GitHub Pages 完成静态网站托管，实现一个可通过公网 URL 访问的 Web 页面，
+      理解云环境下「服务器环境搭建」的本质与优势。
+    </p>
+    <p class="meta">部署平台：GitHub Pages　·　架构：对象存储 + CDN 分发 + 自动 HTTPS　·　成本：0 元</p>
+
+    <div class="hero-btns">
+      <a class="btn btn-p" href="#flow">查看部署流程 ↓</a>
+      <a class="btn btn-g" href="#tech">核心技术要点</a>
+    </div>
+
+    <!-- ↓↓↓ 部署成功后，把下面的地址改成你自己的访问地址 ↓↓↓ -->
+    <div class="urlbox">
+      <span>访问地址</span>
+      <code>https://你的用户名.github.io/cloud-lab2/</code>
+    </div>
+  </div>
+</header>
+
+<!-- ============ 统计 ============ -->
+<div class="wrap">
+  <div class="stats">
+    <div class="stat glass reveal"><b>0 元</b><span>部署成本</span></div>
+    <div class="stat glass reveal"><b>3 步</b><span>完成上线</span></div>
+    <div class="stat glass reveal"><b>1–2 min</b><span>全球生效</span></div>
+    <div class="stat glass reveal"><b>HTTPS</b><span>自动签发证书</span></div>
+  </div>
+</div>
+
+<!-- ============ 流程 ============ -->
+<section id="flow">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="eyebrow"><i></i>DEPLOYMENT FLOW</div>
+      <h2 class="title">部署流程</h2>
+      <p class="sub">从本地文件到公网可访问，只需三步；云平台屏蔽了底层服务器的全部运维细节。</p>
+    </div>
+    <div class="steps">
+      <div class="step glass reveal">
+        <div class="num">01</div>
+        <div><h3>创建仓库</h3><p>在 GitHub 新建 Public 仓库 <code>cloud-lab2</code>，作为托管站点的源码容器。</p></div>
+      </div>
+      <div class="step glass reveal">
+        <div class="num">02</div>
+        <div><h3>上传页面</h3><p>将 <code>index.html</code> 提交至仓库根目录，文件名必须为 index.html 作为默认入口。</p></div>
+      </div>
+      <div class="step glass reveal">
+        <div class="num">03</div>
+        <div><h3>开启 Pages</h3><p>Settings → Pages → Source 选择「Deploy from a branch」，绑定 main 分支与根目录。</p></div>
+      </div>
+      <div class="step glass reveal">
+        <div class="num">04</div>
+        <div><h3>公网访问</h3><p>等待约 1–2 分钟自动构建，即可通过 <code>用户名.github.io/cloud-lab2</code> 访问页面。</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 技术要点 ============ -->
+<section id="tech">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="eyebrow"><i></i>CORE CONCEPTS</div>
+      <h2 class="title">核心技术要点</h2>
+      <p class="sub">静态网站托管背后，是云厂商把存储、网络、证书、缓存封装成一个「点一下就能用」的服务。</p>
+    </div>
+    <div class="cards">
+      <div class="card glass reveal">
+        <div class="ico">🗄️</div>
+        <h3>对象存储</h3>
+        <p>网页文件以对象形式存放在云端存储中，按需读取、天然多副本冗余，无需关心磁盘与文件系统。</p>
+      </div>
+      <div class="card glass reveal">
+        <div class="ico">🌐</div>
+        <h3>CDN 全球分发</h3>
+        <p>内容自动缓存到边缘节点，用户就近取用，显著降低访问延迟并吸收突发流量。</p>
+      </div>
+      <div class="card glass reveal">
+        <div class="ico">🔒</div>
+        <h3>自动 HTTPS</h3>
+        <p>平台自动签发并续期 TLS 证书，无需手工申请、配置 Nginx，默认即具备加密传输能力。</p>
+      </div>
+      <div class="card glass reveal">
+        <div class="ico">⚡</div>
+        <h3>弹性伸缩</h3>
+        <p>访问量变化时由平台自动扩容，无需预估峰值、无需预先采购服务器硬件资源。</p>
+      </div>
+      <div class="card glass reveal">
+        <div class="ico">🔁</div>
+        <h3>持续部署</h3>
+        <p>每次 Git Commit 自动触发重新构建与发布，形成「提交即上线」的自动化交付链路。</p>
+      </div>
+      <div class="card glass reveal">
+        <div class="ico">💰</div>
+        <h3>按量计费</h3>
+        <p>免费额度内零成本，超出后按实际流量与存储付费，体现了云计算「按需使用」的核心商业模式。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 对比 ============ -->
+<section>
+  <div class="wrap">
+    <div class="reveal">
+      <div class="eyebrow"><i></i>COMPARISON</div>
+      <h2 class="title">传统自建服务器 vs 云平台托管</h2>
+      <p class="sub">同一件事，两种范式：前者买设备装系统，后者只需要提交代码。</p>
+    </div>
+    <div class="vs">
+      <div class="col bad glass reveal">
+        <h3>✕ 传统自建</h3>
+        <ul>
+          <li>需采购物理服务器或租用 VPS</li>
+          <li>手动安装操作系统与 Web 服务器（Nginx / Apache）</li>
+          <li>自行申请域名、备案、解析</li>
+          <li>手动申请与续期 SSL 证书</li>
+          <li>峰值流量需提前扩容，资源易闲置</li>
+          <li>宕机、安全补丁均需自行运维</li>
+        </ul>
+      </div>
+      <div class="col good glass reveal">
+        <h3>✓ 云平台托管</h3>
+        <ul>
+          <li>无需服务器，提交代码即可发布</li>
+          <li>运行环境由平台托管，零运维</li>
+          <li>默认提供二级域名，可绑定自定义域名</li>
+          <li>HTTPS 证书自动签发与续期</li>
+          <li>弹性伸缩，按实际用量付费</li>
+          <li>自带高可用、冗余与 DDoS 防护</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 代码 ============ -->
+<section>
+  <div class="wrap">
+    <div class="reveal">
+      <div class="eyebrow"><i></i>PROJECT STRUCTURE</div>
+      <h2 class="title">项目结构与关键命令</h2>
+      <p class="sub">整个站点仅一个入口文件，Git 提交即为部署动作。</p>
+    </div>
+    <div class="code reveal">
+      <div class="bar"><i></i><i></i><i></i></div>
+<pre><span class="c4"># 项目结构</span>
+cloud-lab2/
+└── <span class="c3">index.html</span>   <span class="c4"># 站点默认入口文件</span>
+
+<span class="c4"># 本地推送到远端（推送即触发自动部署）</span>
+<span class="c1">git</span> init
+<span class="c1">git</span> add index.html
+<span class="c1">git</span> commit -m <span class="c2">"deploy: 发布实验二页面"</span>
+<span class="c1">git</span> push -u origin main
+
+<span class="c4"># 部署完成后访问</span>
+<span class="c2">https://zzzzz994.github.io/cloud-lab2/</span></pre>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <b>云计算与分布式系统 · 实验二</b>　—　云环境下的服务器环境搭建<br>
+    姓名 / 学号：张丹/2631062156　|　部署平台：GitHub Pages
+  </div>
+</footer>
+
+<script>
+  // 滚动入场动画
+  const io = new IntersectionObserver((es)=>{
+    es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} });
+  },{threshold:.15,rootMargin:'0px 0px -40px 0px'});
+  document.querySelectorAll('.reveal').forEach((el,i)=>{
+    el.style.transitionDelay = (i%4)*70 + 'ms';
+    io.observe(el);
+  });
+
+  // 鼠标视差：背景光斑跟随
+  document.addEventListener('mousemove', e=>{
+    const x = (e.clientX / innerWidth - .5) * 26;
+    const y = (e.clientY / innerHeight - .5) * 26;
+    document.querySelectorAll('.blob').forEach((b,i)=>{
+      b.style.transform = `translate(${x*(i+1)*0.7}px, ${y*(i+1)*0.7}px)`;
+    });
+  });
+</script>
+</body>
+</html>
